@@ -89,6 +89,12 @@ def main():
                       'or one of %s.'\
                           % ', '.join(KNOWN_PAPER_SIZE_NAMES),
                       default='first')
+    parser.add_option('-o', '--orientation', dest='orientation',
+                      metavar='ORIENTATION',
+                      help="Page orientation: portrait, landscape")
+    parser.add_option('-c', '--category', dest='category_ids', action='append',
+                      metavar='CATEGORYID', type='int',
+                      help="Ushahidi Category ID")
 
     (options, args) = parser.parse_args()
     if len(args):
@@ -199,14 +205,17 @@ def main():
     rc.bounding_box = bbox
     rc.language     = options.language
     rc.stylesheet   = stylesheet
-    if paper_descr[3]:
+    rc.ush_category_ids = options.category_ids
+    if (options.orientation != 'landscape') and paper_descr[3]:
         # Portrait allowed, used in priority
         rc.paper_width_mm  = paper_descr[1]
         rc.paper_height_mm = paper_descr[2]
-    else:
+    elif (options.orientation != 'portrait') and paper_descr[4]:
         # Rotate sheet -> landscape
         rc.paper_width_mm  = paper_descr[2]
         rc.paper_height_mm = paper_descr[1]
+    else:
+        parser.error("Requested paper orientation not compatible with rendering")
 
     # Go !...
     mapper.render(rc, cls_renderer.name, options.output_formats,

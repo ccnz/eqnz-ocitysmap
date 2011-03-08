@@ -28,6 +28,9 @@ import locale
 import psycopg2
 import csv
 import datetime
+import json
+import urllib2
+import textwrap
 
 import commons
 from ocitysmap2 import coords
@@ -337,6 +340,105 @@ order by amenity_name""" \
 
         return [category for category in result if category.items]
 
+
+class EQNZIndex(StreetIndex):
+    WRAP_AT = 60
+    
+    def __init__(self, db, polygon_wkt, i18n, ush_url, ush_category_ids=None):
+        self.ush_url = ush_url
+        self.ush_category_ids = set(ush_category_ids or [])
+        StreetIndex.__init__(self, db, polygon_wkt, i18n)
+
+    def _list_streets(self, db, polygon_wkt):
+        return []
+        
+    def _get_selected_amenities(self):
+        """
+        Return the kinds of amenities to retrieve from DB as a list of
+        string tuples:
+          1. Category, displayed headers in the final index
+          2. Category ID, Ushahidi
+          3. Label, text to display in the index for this amenity
+
+        Note: This has to be a function because gettext() has to be
+        called, which takes i18n into account... It cannot be
+        statically defined as a class attribute for example.
+        """
+        
+        url = '%s/api?task=categories' % self.ush_url
+        categories = json.loads(urllib2.urlopen(url).read())
+
+        # Make sure gettext is available...
+        try:
+            selected_amenities = []
+            for cat in categories['payload']['categories']:
+                if (not self.ush_category_ids) or (int(cat['category']['id']) in self.ush_category_ids):
+                    selected_amenities.append((_(cat['category']['title']), int(cat['category']['id']), 'incidenttitle'))
+            
+        except NameError:
+            l.exception("i18n has to be initialized beforehand")
+            return []
+
+        return selected_amenities
+    
+    def _list_amenities(self, db, polygon_wkt):
+        """Get the list of amenities inside the given polygon. Don't
+        try to map them onto the grid of squares (there location_str
+        field remains undefined).
+
+        Args:
+           db (psycopg2 DB): The GIS database
+           polygon_wkt (str): The WKT of the surrounding polygon of interest
+
+        Returns a list of commons.IndexCategory objects, with their IndexItems
+        having no specific grid square location
+        """
+        tw = textwrap.TextWrapper(width=self.WRAP_AT, subsequent_indent='  ')
+        cursor = db.cursor()
+
+        result = []
+        for catname, catid, label in self._get_selected_amenities():
+            l.info("Getting amenities for %s/%s..." % (catname, catid))
+
+            # Get the current IndexCategory object, or create one if
+            # different than previous
+            if (not result or result[-1].name != catname):
+                current_category = commons.IndexCategory(catname, icon='osm-mapnik/eqnz/cat_%s.png' % catid)
+                result.append(current_category)
+            else:
+                current_category = result[-1]
+
+            #SELECT substr(trim(title), 0, 70), st_x(st_transform(location, 4002)), st_y(st_transform(location, 4002))
+            query = """
+                SELECT trim(title), trim(locationdesc), st_x(st_transform(location, 4002)), st_y(st_transform(location, 4002))
+                FROM ush_incident, ush_incident_category
+                WHERE
+                    ush_incident.id = ush_incident_category.incident_id
+                    AND ush_incident_category.category_id = %s
+                    AND trim(title) != ''
+                    AND st_intersects(location, st_transform(GeomFromText(%s, 4002), 900913))
+                ORDER BY title;
+            """
+
+            # l.debug("Amenity query for for %s/%s (nogrid): %s" \
+            #             % (catname, query, (catid, polygon_wkt)))
+
+            cursor.execute(query, (catid, polygon_wkt))
+
+            for title, locationdesc, x, y in cursor.fetchall():
+                text = title.strip()
+                if locationdesc:
+                    if text.endswith('.'):
+                        text = text[:-1]
+                    text += ": " + locationdesc.title()
+                
+                pt = coords.Point(y, x)
+                current_category.items.append(commons.IndexItem(tw.fill(text), pt, pt))
+
+            l.debug("Got %d amenities for %s/%s."
+                    % (len(current_category.items), catname, catid))
+
+        return [category for category in result if category.items]
 
 if __name__ == "__main__":
     import os

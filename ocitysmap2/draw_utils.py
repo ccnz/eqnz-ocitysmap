@@ -72,7 +72,7 @@ def draw_text_left(ctx, pc, layout, fascent, fheight,
     """
     w,h = draw_text(ctx, pc, layout, fascent, fheight,
                     baseline_x, baseline_y, text, pango.ALIGN_LEFT)
-    return baseline_x, baseline_y, baseline_x + w
+    return baseline_x, baseline_y, baseline_x + w, baseline_y + h
 
 def draw_text_center(ctx, pc, layout, fascent, fheight,
                      baseline_x, baseline_y, text):
@@ -97,7 +97,8 @@ def draw_text_center(ctx, pc, layout, fascent, fheight,
     layout_width = layout.get_width() / pango.SCALE
     return ( baseline_x + (layout_width - txt_width) / 2.,
              baseline_y,
-             baseline_x + (layout_width + txt_width) / 2. )
+             baseline_x + (layout_width + txt_width) / 2.,
+             baseline_y + txt_height)
 
 def draw_text_right(ctx, pc, layout, fascent, fheight,
                     baseline_x, baseline_y, text):
@@ -122,7 +123,8 @@ def draw_text_right(ctx, pc, layout, fascent, fheight,
     layout_width = layout.get_width() / pango.SCALE
     return (baseline_x + layout_width - txt_width,
             baseline_y,
-            baseline_x + layout_width)
+            baseline_x + layout_width,
+            baseline_y + txt_height)
 
 def draw_dotted_line(ctx, line_width, baseline_x, baseline_y, length):
     ctx.set_line_width(line_width)

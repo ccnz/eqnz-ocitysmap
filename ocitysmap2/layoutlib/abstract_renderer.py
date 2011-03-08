@@ -128,11 +128,11 @@ class Renderer:
         """
         # TODO: read vector logo
         logo_path = os.path.abspath(os.path.join(
-            os.path.dirname(__file__), '..', '..', 'images', 'osm-logo.png'))
+            os.path.dirname(__file__), '..', '..', 'images', 'eqnz-logo.png'))
         if not os.path.exists(logo_path):
             logo_path = os.path.join(
                 sys.exec_prefix, 'share', 'images', 'ocitysmap2',
-                'osm-logo.png')
+                'eqnz-logo.png')
 
         try:
             with open(logo_path, 'rb') as f:
@@ -212,8 +212,8 @@ class Renderer:
 
         ctx.restore()
 
-    def _create_map_canvas(self, graphical_ratio,
-                           draw_contour_shade = True):
+    def _create_map_canvas(self, size,
+                           draw_contour_shade = False):
         """
         Create a new MapCanvas object.
 
@@ -228,7 +228,7 @@ class Renderer:
         # Prepare the map canvas
         canvas = MapCanvas(self.rc.stylesheet,
                            self.rc.bounding_box,
-                           graphical_ratio)
+                           size)
 
         if draw_contour_shade:
             # Area to keep visible
@@ -253,6 +253,8 @@ class Renderer:
             canvas.add_shape_file(shade_shape,
                                   self.rc.stylesheet.shade_color,
                                   self.rc.stylesheet.shade_alpha)
+
+        canvas.enable_ush_layers(self.rc.ush_category_ids)
 
         return canvas
 

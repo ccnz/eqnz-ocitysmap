@@ -43,7 +43,7 @@ class MapCanvas:
     their respective alpha levels.
     """
 
-    def __init__(self, stylesheet, bounding_box, graphical_ratio):
+    def __init__(self, stylesheet, bounding_box, size):
         """Initialize the map canvas for rendering.
 
         Args:
@@ -53,6 +53,7 @@ class MapCanvas:
         """
 
         self._proj = mapnik.Projection(_MAPNIK_PROJECTION)
+        graphical_ratio = size[0] / size[1]
 
         # This is where the magic of the map canvas happens. Given an original
         # bounding box and a graphical ratio for the output, the bounding box
@@ -69,8 +70,9 @@ class MapCanvas:
                 off_x+width, off_y+height)
 
         self._geo_bbox = self._inverse_envelope(envelope)
-        g_height, g_width = self._geo_bbox.get_pixel_size_for_zoom_factor(
-                stylesheet.zoom_level)
+        #g_height, g_width = self._geo_bbox.get_pixel_size_for_zoom_factor(
+        #        stylesheet.zoom_level)
+        g_height, g_width = int(size[1]), int(size[0])
 
         l.debug('Corrected bounding box from %s to %s, ratio: %.2f.' %
                 (bounding_box, self._geo_bbox, graphical_ratio))
@@ -85,6 +87,17 @@ class MapCanvas:
         self._shapes = []
 
         l.info('MapCanvas rendering map on %dx%dpx.' % (g_width, g_height))
+
+    def enable_ush_layers(self, category_ids):
+        if category_ids:
+            layer_names = set(['ush_cat_%d' % c for c in category_ids])
+            for l in self._map.layers:
+                if l.name in layer_names:
+                    l.active = True
+        else:
+            for l in self._map.layers:
+                if l.name.startswith('ush_cat_'):
+                    l.active = True
 
     def _fix_bbox_ratio(self, off_x, off_y, width, height, dest_ratio):
         """Adjusts the area expressed by its origin's offset and its size to

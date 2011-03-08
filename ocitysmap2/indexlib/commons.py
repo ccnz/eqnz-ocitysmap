@@ -23,6 +23,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pango
+import cairo
 
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -44,12 +45,14 @@ class IndexCategory:
     type).
     """
     name = None
+    icon = None
     items = None
 
-    def __init__(self, name, items = None):
+    def __init__(self, name, items = None, icon=None):
         assert name is not None
         self.name  = name
         self.items = items or list()
+        self.icon = icon
 
     def __str__(self):
         return '<%s (%s)>' % (self.name, map(str, self.items))
@@ -80,9 +83,38 @@ class IndexCategory:
         ctx.fill()
 
         ctx.set_source_rgb(0.0, 0.0, 0.0)
-        draw_utils.draw_text_center(ctx, pc, layout, fascent, fheight,
+        lx, _, rx, _ = draw_utils.draw_text_center(ctx, pc, layout, fascent, fheight,
                                     baseline_x, baseline_y, self.name)
+        
+        if self.icon:
+            ctx.save()
+            grp, w, h = self.draw_icon(ctx, fheight)
+            if grp:
+                ctx.translate(lx - (w * 1.1), baseline_y - fascent + (fheight-h)/2.0)
+                ctx.set_source(grp)
+                ctx.paint_with_alpha(1.0)
+            ctx.restore()   
+
         ctx.restore()
+
+    def draw_icon(self, ctx, fheight):
+        if not os.path.exists(self.icon):
+            print "WARNING: Icon not found:", self.icon
+            return None, None
+
+        with open(self.icon, 'rb') as f:
+            png = cairo.ImageSurface.create_from_png(f)
+
+        ctx.push_group()
+        ctx.save()
+        ctx.move_to(0, 0)
+        # resize icon down if necessary but not up
+        factor = min(fheight, png.get_height()) / png.get_height()
+        ctx.scale(factor, factor)
+        ctx.set_source_surface(png)
+        ctx.paint()
+        ctx.restore()
+        return ctx.pop_group(), png.get_width()*factor, min(fheight, png.get_height())
 
     def get_all_item_labels(self):
         return [x.label for x in self.items]
@@ -139,28 +171,39 @@ class IndexItem:
 
         ctx.save()
         if not rtl:
-            _, _, line_start = draw_utils.draw_text_left(ctx, pc, layout,
-                                                         fascent, fheight,
-                                                         baseline_x, baseline_y,
-                                                         self.label)
-            line_end, _, _ = draw_utils.draw_text_right(ctx, pc, layout,
+            for i,line in enumerate(self.label.split('\n')):
+                _, _, line_start, new_baseline_y = draw_utils.draw_text_left(ctx, pc, layout,
+                                                             fascent, fheight,
+                                                             baseline_x, baseline_y,
+                                                             line)
+                prev_baseline_y = baseline_y
+                baseline_y = new_baseline_y
+            
+            line_end, _, _, _ = draw_utils.draw_text_right(ctx, pc, layout,
                                                         fascent, fheight,
-                                                        baseline_x, baseline_y,
+                                                        baseline_x, prev_baseline_y,
                                                         self.location_str or '???')
         else:
-            _, _, line_start = draw_utils.draw_text_left(ctx, pc, layout,
+            orig_baseline_y = baseline_y
+            _, _, line_start, _ = draw_utils.draw_text_left(ctx, pc, layout,
                                                          fascent, fheight,
                                                          baseline_x, baseline_y,
                                                          self.location_str or '???')
-            line_end, _, _ = draw_utils.draw_text_right(ctx, pc, layout,
-                                                        fascent, fheight,
-                                                        baseline_x, baseline_y,
-                                                        self.label)
+            for i,line in enumerate(self.label.split('\n')):
+                line_end, _, _, new_baseline_y = draw_utils.draw_text_right(ctx, pc, layout,
+                                                            fascent, fheight,
+                                                            baseline_x, baseline_y,
+                                                            line)
+                prev_baseline_y = baseline_y
+                baseline_y = new_baseline_y
+
+            prev_baseline_y = orig_baseline_y
 
         draw_utils.draw_dotted_line(ctx, max(fheight/12, 1),
-                                    line_start + fheight/4, baseline_y,
+                                    line_start + fheight/4, prev_baseline_y,
                                     line_end - line_start - fheight/2)
         ctx.restore()
+        return i+1
 
     def update_location_str(self, grid):
         """

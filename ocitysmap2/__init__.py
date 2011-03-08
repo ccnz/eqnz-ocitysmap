@@ -91,7 +91,7 @@ import shapely.geometry
 import coords
 import i18n
 
-from indexlib.indexer import StreetIndex
+from indexlib.indexer import StreetIndex, EQNZIndex
 from indexlib.commons import IndexDoesNotFitError, IndexEmptyError
 
 from layoutlib import PAPER_SIZES, renderers
@@ -124,6 +124,8 @@ class RenderingConfiguration:
         # Setup by OCitySMap::render() from language field:
         self.i18n            = None # i18n object
 
+        self.ush_category_ids = []
+
 
 class Stylesheet:
     """
@@ -141,7 +143,7 @@ class Stylesheet:
 
         self.grid_line_color = 'black'
         self.grid_line_alpha = 0.5
-        self.grid_line_width = 3
+        self.grid_line_width = 1
 
         self.shade_color = 'black'
         self.shade_alpha = 0.1
@@ -241,6 +243,7 @@ class OCitySMap:
 
         db = psycopg2.connect(user=datasource['user'],
                               password=datasource['password'],
+                              port=5433,
                               host=datasource['host'],
                               database=datasource['dbname'])
 
@@ -423,9 +426,11 @@ SELECT ST_AsText(ST_LongestLine(
 
         # Prepare the index
         try:
-            street_index = StreetIndex(self._db,
+            street_index = EQNZIndex(self._db,
                                        config.polygon_wkt,
-                                       config.i18n)
+                                       config.i18n,
+									   ush_url='http://eq.org.nz',
+									   ush_category_ids=config.ush_category_ids)
         except IndexEmptyError:
             LOG.warning("Designated area leads to an empty index")
             street_index = None

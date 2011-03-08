@@ -103,24 +103,26 @@ class StreetIndexRenderer:
 
     def __init__(self, i18n, index_categories,
                  street_index_rendering_styles \
-                     = [ StreetIndexRenderingStyle('Georgia Bold 16',
+                     = [ StreetIndexRenderingStyle('Georgia Bold 12',
                                                    'DejaVu 12'),
-                         StreetIndexRenderingStyle('Georgia Bold 14',
-                                                   'DejaVu 10'),
-                         StreetIndexRenderingStyle('Georgia Bold 12',
-                                                   'DejaVu 8'),
+                         StreetIndexRenderingStyle('Georgia Bold 11',
+                                                   'DejaVu 11'),
                          StreetIndexRenderingStyle('Georgia Bold 10',
-                                                   'DejaVu 7'),
+                                                   'DejaVu 10'),
+                         StreetIndexRenderingStyle('Georgia Bold 9',
+                                                   'DejaVu 9'),
                          StreetIndexRenderingStyle('Georgia Bold 8',
-                                                   'DejaVu 6'),
+                                                   'DejaVu 8'),
+                         StreetIndexRenderingStyle('Georgia Bold 7',
+                                                   'DejaVu 7'),
                          StreetIndexRenderingStyle('Georgia Bold 6',
-                                                   'DejaVu 5'),
+                                                   'DejaVu 6'),
                          StreetIndexRenderingStyle('Georgia Bold 5',
-                                                   'DejaVu 4'),
+                                                   'DejaVu 5'),
                          StreetIndexRenderingStyle('Georgia Bold 4',
-                                                   'DejaVu 3'),
+                                                   'DejaVu 4'),
                          StreetIndexRenderingStyle('Georgia Bold 3',
-                                                   'DejaVu 2'),
+                                                   'DejaVu 3'),
                          StreetIndexRenderingStyle('Georgia Bold 2',
                                                    'DejaVu 2'),
                          StreetIndexRenderingStyle('Georgia Bold 1',
@@ -317,7 +319,7 @@ class StreetIndexRenderer:
                     offset_x      += delta_x
                     actual_n_cols += 1
 
-                street.draw(self._i18n.isrtl(), ctx, pc, label_layout,
+                nlines = street.draw(self._i18n.isrtl(), ctx, pc, label_layout,
                             UTILS.convert_pt_to_dots(label_fascent, dpi),
                             UTILS.convert_pt_to_dots(label_fheight, dpi),
                             UTILS.convert_pt_to_dots(rendering_area.x
@@ -326,7 +328,7 @@ class StreetIndexRenderer:
                                                      + offset_y
                                                      + label_fascent, dpi))
 
-                offset_y += label_fheight
+                offset_y += label_fheight * nlines
 
         # Restore original context
         ctx.restore()
@@ -375,11 +377,16 @@ class StreetIndexRenderer:
                                                                      font_desc)
         #print "PREPARE", layout, fascent, fheight, em
 
-        width = max(map(lambda x: self._label_width(layout, x), text_lines))
+        width = 0
+        nlines = 0
+        for line in text_lines:
+            for l in line.split('\n'):
+                width = max(width, self._label_width(layout, l))
+                nlines += 1
         # Save some extra space horizontally
         width += n_em_padding * em
 
-        height = fheight * len(text_lines)
+        height = fheight * nlines
 
         return {'column_width': width, 'column_height': height,
                 'fascent': fascent, 'fheight': fheight, 'em': em}

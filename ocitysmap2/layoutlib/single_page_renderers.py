@@ -50,7 +50,7 @@ class SinglePageRenderer(Renderer):
     name = 'generic_single_page'
     description = 'A generic full-page layout with or without index.'
 
-    MAX_INDEX_OCCUPATION_RATIO = 1/3.
+    MAX_INDEX_OCCUPATION_RATIO = 0.45
 
     def __init__(self, rc, tmpdir,
                  street_index = None, index_position = 'side'):
@@ -127,8 +127,7 @@ class SinglePageRenderer(Renderer):
 
         # Prepare the map
         self._map_canvas = self._create_map_canvas(
-            float(self._map_coords[2]) / # W
-            float(self._map_coords[3]) ) # H
+            (float(self._map_coords[2]), float(self._map_coords[3])) ) # H
 
         # Prepare the grid
         self.grid = self._create_grid(self._map_canvas)
@@ -210,11 +209,11 @@ class SinglePageRenderer(Renderer):
         """
 
         # Title background
-        ctx.save()
-        ctx.set_source_rgb(0.8, 0.9, 0.96)
-        ctx.rectangle(0, 0, w_dots, h_dots)
-        ctx.fill()
-        ctx.restore()
+        #ctx.save()
+        #ctx.set_source_rgb(0.8, 0.9, 0.96)
+        #ctx.rectangle(0, 0, w_dots, h_dots)
+        #ctx.fill()
+        #ctx.restore()
 
         # Retrieve and paint the OSM logo
         ctx.save()
@@ -222,7 +221,7 @@ class SinglePageRenderer(Renderer):
         if grp:
             ctx.translate(w_dots - logo_width - 0.1*h_dots, 0.1*h_dots)
             ctx.set_source(grp)
-            ctx.paint_with_alpha(0.5)
+            ctx.paint_with_alpha(1.0)
         else:
             LOG.warning("OSM Logo not available.")
             logo_width = 0
@@ -263,22 +262,18 @@ class SinglePageRenderer(Renderer):
            notice (str): Optional notice to replace the default.
         """
 
-        today = datetime.date.today()
+        today = datetime.datetime.now()
         notice = notice or \
-            _(u'Copyright © %(year)d MapOSMatic/OCitySMap developers. '
-              u'Map data © %(year)d OpenStreetMap.org '
-              u'and contributors (cc-by-sa).\n'
-              u'This map has been rendered on %(date)s and may be '
-              u'incomplete or innacurate. '
-              u'You can contribute to improve this map. '
-              u'See http://wiki.openstreetmap.org')
+            _(u'Produced %(date)s from Christchurch Recovery Map (http://eq.org.nz) reports - CC-BY. '
+              u'Base map ©%(year)d OpenStreetMap CC-BY-SA\n'
+              u'VIEW UP-TO-DATE INFO FROM EQ.ORG.NZ ON TELETEXT PAGE 700. TXT IN REPORTS TO 5627 OR EMAIL EQNZFEB@GMAIL.COM')
 
         # We need the correct locale to be set for strftime().
         prev_locale = locale.getlocale(locale.LC_TIME)
         locale.setlocale(locale.LC_TIME, self.rc.i18n.language_code())
         try:
             notice = notice % {'year': today.year,
-                               'date': today.strftime("%d %B %Y")}
+                               'date': today.strftime("%a %D %H:%M")}
         finally:
             locale.setlocale(locale.LC_TIME, prev_locale)
 
@@ -461,8 +456,9 @@ class SinglePageRenderer(Renderer):
             portrait_ok  = paper_width_mm <= w and paper_height_mm <= h
             landscape_ok = paper_width_mm <= h and paper_height_mm <= w
 
-            if portrait_ok or landscape_ok:
-                valid_sizes.append((name, w, h, portrait_ok, landscape_ok))
+            #if portrait_ok or landscape_ok:
+            #    valid_sizes.append((name, w, h, portrait_ok, landscape_ok))
+            valid_sizes.append((name, w, h, True, True))
 
         # Add a 'Custom' paper format to the list that perfectly matches the
         # bounding box.
